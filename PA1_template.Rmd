@@ -1,24 +1,132 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
+title: "Reproducible Researc Peer Assessment 1"
 output: 
   html_document:
     keep_md: true
 ---
+For this assignement we will start loading the needed libraries 
 
+```{r load library, echo=TRUE}
+library(dplyr)
+library(knitr)
+library(ggplot2)
+```
+
+```{r setptions}
+opts_chunk$set(echo = TRUE)
+```
 
 ## Loading and preprocessing the data
 
+```{r loader, echo=TRUE}
+data <- read.csv("/home/fabiofab/RepData_PeerAssessment1/activity.csv")
+```
 
 
 ## What is mean total number of steps taken per day?
 
+1. Calculate the total number of steps taken per day
+```{r totalstep}
+stepsPerDay <- aggregate(data$steps, by = list(data$date), FUN = sum)
+names(stepsPerDay) <- c("Date", "Steps")
+stepsPerDay$Steps
+```
+The result show us all the 53 valid values and the 8 days with NAs
 
+2. Histogram of the total number of steps taken each day
+```{r histogram, fig.height=5, fig.width=9}
+hist(stepsPerDay$Steps, xlab = "Steps", xlim = c(0,25000), col = 6, 
+     main = "Total Steps", breaks = 30)
+```
+
+3. Calculate and report the mean and median of the total number of steps taken per day
+```{r }
+summary(stepsPerDay$Steps)
+```
+
+The summary function returns a **mean** value of **10760** and a **median** of **10770**
 
 ## What is the average daily activity pattern?
 
+- Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and
+the average number of steps taken, averaged across all days (y-axis)
+```{r}
+stepsPerInterval <- aggregate(steps ~ interval, data, mean)
+head(stepsPerInterval)
+```
 
+```{r plot, fig.height=5, fig.width=9}
+plot(stepsPerInterval$interval, stepsPerInterval$steps, type='l', 
+        col = 6,
+        lwd = 2,
+        main="Average number of steps over all days per 5 minutes interval", 
+        xlab="Interval",ylab="Average number of steps")
+```
+
+```{r}
+maxStepObservation <- which.max(stepsPerInterval$steps)
+stepsPerInterval[maxStepObservation, ]
+```
+As shown in the plot, the *highest number of steps in a 5 minutes interval* is 
+**206**
 
 ## Imputing missing values
+1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NA’s)
+
+```{r count NAs}
+nasCount <- sum(is.na(data))
+nasCount
+```
+The total number of missing values in the dataset is **`r nasCount`**
+
+2. Devise a strategy for filling in all of the missing values in the dataset. The strategy does not need to be sophisticated. For example, you could use the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+To populate missing values, we choose to replace them with the mean value at the same interval across days.
+
+3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+
+ 
+We create a function naFill(data, pervalue) which the data arguement is the rdata data frame and pervalue argument is the stepsPerInterval data frame.
+
+```{r}
+naFill <- function(data, pervalue) {
+        naIndex <- which(is.na(data$steps))
+        naReplace <- unlist(lapply(naIndex, FUN=function(idx){
+                interval = data[idx,]$interval
+                pervalue[pervalue$interval == interval,]$steps
+        }))
+        fillSteps <- data$steps
+        fillSteps[naIndex] <- naReplace
+        fillSteps
+}
+
+rdataFill <- data.frame(  
+        steps = naFill(data, stepsPerInterval),  
+        date = data$date,  
+        interval = data$interval)
+str(rdataFill)
+```
+Final check for missing values
+```{r}
+sum(is.na(rdataFill$steps))
+```
+
+4. Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. Do these values differ from the estimates from the first part of the assignment? What is the impact of imputing missing data on the estimates of the total daily number of steps?
+
+```{r, fig.height=5, fig.width=9}
+fillStepsPerDay <- aggregate(steps ~ date, rdataFill, sum)
+colnames(fillStepsPerDay) <- c("date","steps")
+
+ggplot(fillStepsPerDay, aes(x = steps)) + 
+       geom_histogram(fill = "magenta", binwidth = 1000) + 
+        labs(title="Histogram of Steps Taken per Day", 
+             x = "Number of Steps per Day", y = "Number of times in a day(Count)") + theme_bw() 
+```
+
+```{r}
+summary(fillStepsPerDay$steps, na.rm = TRUE)
+```
+We see that the values after filling the data mean and median are equal.
 
 
 
